@@ -1,0 +1,68 @@
+{
+  "id": "dynamodb",
+  "name": "AWS DynamoDB API",
+  "name_en": "AWS DynamoDB API",
+  "version": "1.0.0",
+  "description": "Operaciones directas sobre tablas DynamoDB: escribir/leer/eliminar un ítem, consultar por partition key y describir la tabla",
+  "description_en": "Direct operations on DynamoDB tables: put/get/delete an item, query by partition key and describe the table",
+  "icon": "icon.svg",
+  "category": "cloud",
+  "category_en": "cloud",
+  "keywords": ["aws", "dynamodb", "amazon", "nosql", "base de datos", "database", "item", "tabla", "table"],
+  "library": {
+    "package": "ruvic-dynamodb-connector",
+    "install": "pip install git+https://github.com/Dgirto/AWS-DynamoDB-API.git#subdirectory=lib",
+    "import_name": "ruvic_dynamodb_connector"
+  },
+  "auth_modes": [
+    {
+      "id": "access_key",
+      "label": "Access Key ID y Secret Access Key",
+      "fields": [
+        {
+          "key": "access_key_id",
+          "label": "Access Key ID",
+          "type": "text",
+          "required": true,
+          "placeholder": "AKIAIOSFODNN7EXAMPLE"
+        },
+        {
+          "key": "secret_access_key",
+          "label": "Secret Access Key",
+          "type": "password",
+          "secret": true,
+          "required": true
+        },
+        {
+          "key": "region",
+          "label": "Región de AWS",
+          "type": "text",
+          "required": true,
+          "placeholder": "us-east-1"
+        },
+        {
+          "key": "table",
+          "label": "Tabla",
+          "type": "text",
+          "required": true,
+          "placeholder": "mi-tabla-produccion",
+          "help_text": "El conector opera sobre una única tabla. La policy IAM debe limitarse a esta tabla (principio de mínimo privilegio)."
+        },
+        {
+          "key": "connect_timeout",
+          "label": "Timeout de conexión (segundos)",
+          "type": "number",
+          "required": false,
+          "default": "10"
+        }
+      ]
+    }
+  ],
+  "env_prefix": "RUVIC_DYNAMODB_",
+  "operations": ["dynamo.put_item", "dynamo.get_item", "dynamo.query", "dynamo.delete_item", "dynamo.describe_table"],
+  "test_connection": true,
+  "docs": {
+    "skill": "SKILL.md",
+    "permissions_note": "El usuario o rol IAM necesita dynamodb:PutItem, dynamodb:GetItem, dynamodb:Query, dynamodb:DeleteItem y dynamodb:DescribeTable sobre la tabla configurada (arn:aws:dynamodb:*:*:table/mi-tabla y su índice arn:aws:dynamodb:*:*:table/mi-tabla/index/*). No se requieren permisos de administración (dynamodb:CreateTable, dynamodb:DeleteTable, etc.). Este conector SÍ escribe y elimina datos reales."
+  }
+}

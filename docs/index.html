@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="doc_title">Conector AWS DynamoDB API — Ruvic</title>
+  <link rel="stylesheet" href="assets/ruvic.css">
+</head>
+<body>
+  <main class="ruvic-container">
+    <nav class="ruvic-toc" aria-label="Índice">
+      <h2 data-i18n="toc_title">Contenido</h2>
+      <ol>
+        <li><a href="#que-es" data-i18n="toc.que_es">¿Qué es y para qué sirve?</a></li>
+        <li><a href="#prerrequisitos" data-i18n="toc.prerrequisitos">Prerrequisitos</a></li>
+        <li><a href="#configuracion-fabricante" data-i18n="toc.configuracion_fabricante">Configuración en el fabricante</a></li>
+        <li><a href="#permisos" data-i18n="toc.permisos">Permisos requeridos</a></li>
+        <li><a href="#configuracion-ruvic" data-i18n="toc.configuracion_ruvic">Configuración en Ruvic</a></li>
+        <li><a href="#verificacion" data-i18n="toc.verificacion">Verificación</a></li>
+        <li><a href="#solucion-problemas" data-i18n="toc.solucion_problemas">Solución de problemas</a></li>
+        <li><a href="#faq-seguridad" data-i18n="toc.faq_seguridad">Preguntas frecuentes y notas de seguridad</a></li>
+      </ol>
+    </nav>
+
+    <h1 data-i18n="guide_title">Conector AWS DynamoDB API</h1>
+    <p class="guide-updated">{{ULTIMA_ACTUALIZACION}}</p>
+
+    <section>
+      <h2 id="que-es" data-i18n="section.que_es">¿Qué es y para qué sirve?</h2>
+      <p data-i18n="section.que_es.body">Este conector permite al agente de Ruvic operar directamente sobre una tabla de Amazon DynamoDB: escribir/reemplazar un ítem, obtenerlo por su clave, consultar por partition key, eliminarlo y describir la tabla.</p>
+      <div class="callout callout-warning">
+        <span class="callout-title" data-i18n="section.que_es.write_title">Este conector escribe y elimina datos</span>
+        <span data-i18n="section.que_es.write_body">A diferencia de los conectores de solo consulta del catálogo, este SÍ escribe (put_item) y elimina (delete_item) ítems reales en la tabla configurada.</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.operacion">Operación</th>
+            <th data-i18n="table.que_hace">Qué hace</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>dynamo.put_item</code></td>
+            <td data-i18n="op.put_item">Escribe o reemplaza por completo un ítem</td>
+          </tr>
+          <tr>
+            <td><code>dynamo.get_item</code></td>
+            <td data-i18n="op.get_item">Obtiene un ítem por su clave primaria</td>
+          </tr>
+          <tr>
+            <td><code>dynamo.query</code></td>
+            <td data-i18n="op.query">Consulta ítems que comparten una partition key</td>
+          </tr>
+          <tr>
+            <td><code>dynamo.delete_item</code></td>
+            <td data-i18n="op.delete_item">Elimina un ítem por su clave primaria</td>
+          </tr>
+          <tr>
+            <td><code>dynamo.describe_table</code></td>
+            <td data-i18n="op.describe_table">Metadatos de la tabla (estado, cantidad de ítems, tamaño)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 id="prerrequisitos" data-i18n="section.prerrequisitos">Prerrequisitos</h2>
+      <ul>
+        <li data-i18n="prereq.1">Una tabla de <strong>Amazon DynamoDB</strong> ya creada, con su clave primaria definida.</li>
+        <li data-i18n="prereq.2">Acceso a la <strong>consola de AWS IAM</strong> para crear un usuario dedicado.</li>
+        <li data-i18n="prereq.3">El nombre de la tabla y la región de AWS donde vive.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 id="configuracion-fabricante" data-i18n="section.configuracion_fabricante">Configuración en el fabricante</h2>
+      <div data-i18n="fabricante.intro">
+        <p>Vas a crear un <strong>usuario IAM dedicado</strong> para Ruvic, con permisos limitados a una única tabla. No reutilices credenciales de administrador ni de tu aplicación.</p>
+      </div>
+      <ol class="ruvic-steps">
+        <li>
+          <strong data-i18n="step.1.label">Crea un usuario IAM dedicado.</strong>
+          <p data-i18n="step.1.body">En IAM → Usuarios → Crear usuario. No le des acceso a la consola, solo acceso programático.</p>
+        </li>
+        <li>
+          <strong data-i18n="step.2.label">Crea una policy con el mínimo privilegio necesario.</strong>
+          <p data-i18n="step.2.body">Adjuntá una policy en línea limitada a la tabla que va a usar el conector:</p>
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/mi-tabla",
+        "arn:aws:dynamodb:*:*:table/mi-tabla/index/*"
+      ]
+    }
+  ]
+}</code></pre>
+        </li>
+        <li>
+          <strong data-i18n="step.3.label">Genera las claves de acceso.</strong>
+          <p data-i18n="step.3.body">En la pestaña "Credenciales de seguridad" del usuario, creá un Access Key. Guardá el Access Key ID y el Secret Access Key — el secreto solo se muestra una vez.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2 id="permisos" data-i18n="section.permisos">Permisos requeridos</h2>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.permiso">Permiso</th>
+            <th data-i18n="table.para_que">Para qué sirve</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>dynamodb:PutItem</code></td>
+            <td data-i18n="perm.put">Escribir/reemplazar ítems (<code>put_item</code>)</td>
+          </tr>
+          <tr>
+            <td><code>dynamodb:GetItem</code></td>
+            <td data-i18n="perm.get">Leer un ítem por clave (<code>get_item</code>)</td>
+          </tr>
+          <tr>
+            <td><code>dynamodb:Query</code></td>
+            <td data-i18n="perm.query">Consultar por partition key (<code>query</code>)</td>
+          </tr>
+          <tr>
+            <td><code>dynamodb:DeleteItem</code></td>
+            <td data-i18n="perm.delete">Eliminar un ítem (<code>delete_item</code>)</td>
+          </tr>
+          <tr>
+            <td><code>dynamodb:DescribeTable</code></td>
+            <td data-i18n="perm.describe">Metadatos de la tabla (<code>describe_table</code>, test de conexión)</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout callout-info">
+        <span class="callout-title" data-i18n="perm.note_title">Nota</span>
+        <span data-i18n="perm.note_body">No se otorgan permisos de administración de tabla (dynamodb:CreateTable, dynamodb:DeleteTable, dynamodb:UpdateTable).</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 id="configuracion-ruvic" data-i18n="section.configuracion_ruvic">Configuración en Ruvic</h2>
+      <div data-i18n="ruvic.intro">
+        <p>Entrá a <strong>Settings → Conectores</strong>, buscá la tarjeta <strong>AWS DynamoDB API</strong> y pulsá <strong>Configurar</strong>.</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.campo">Campo del formulario</th>
+            <th data-i18n="table.valor">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-i18n="field.access_key_id">Access Key ID</td>
+            <td data-i18n="field.access_key_id.value">El Access Key ID generado en el paso anterior</td>
+          </tr>
+          <tr>
+            <td data-i18n="field.secret_access_key">Secret Access Key</td>
+            <td data-i18n="field.secret_access_key.value">El Secret Access Key generado (se guarda cifrado)</td>
+          </tr>
+          <tr>
+            <td data-i18n="field.region">Región de AWS</td>
+            <td data-i18n="field.region.value">La región donde está la tabla (ej. us-east-1)</td>
+          </tr>
+          <tr>
+            <td data-i18n="field.table">Tabla</td>
+            <td data-i18n="field.table.value">Nombre exacto de la tabla DynamoDB</td>
+          </tr>
+        </tbody>
+      </table>
+      <p><span class="ruvic-button" data-i18n="ruvic.test_button">Probar conexión</span> <span data-i18n="ruvic.test_note"> — la plataforma describirá la tabla configurada para confirmar credenciales y acceso.</span></p>
+    </section>
+
+    <section>
+      <h2 id="verificacion" data-i18n="section.verificacion">Verificación</h2>
+      <ol class="ruvic-steps">
+        <li>
+          <strong data-i18n="verif.1.label">Test de conexión exitoso.</strong>
+          <p data-i18n="verif.1.body">El botón "Probar conexión" debe responder con éxito describiendo la tabla configurada.</p>
+        </li>
+        <li>
+          <strong data-i18n="verif.2.label">Prueba mínima con el agente.</strong>
+          <p data-i18n="verif.2.body">Abrí una conversación nueva y pedile:</p>
+          <blockquote data-i18n="verif.2.quote">"Describime la tabla DynamoDB configurada."</blockquote>
+          <p data-i18n="verif.2.result">El agente debe devolver el estado real y la cantidad de ítems de la tabla.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2 id="solucion-problemas" data-i18n="section.solucion_problemas">Solución de problemas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.mensaje">Mensaje / síntoma</th>
+            <th data-i18n="table.causa">Causa probable y solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-i18n="trouble.1.msg">"Credenciales inválidas o sin permiso IAM suficiente"</td>
+            <td data-i18n="trouble.1.fix">Access Key inválida/rotada, o la policy no incluye el permiso necesario para la operación. Revisá la policy adjunta al usuario IAM.</td>
+          </tr>
+          <tr>
+            <td data-i18n="trouble.2.msg">"La tabla no existe o no es accesible"</td>
+            <td data-i18n="trouble.2.fix">Nombre de tabla mal escrito, o la tabla está en otra región distinta a la configurada.</td>
+          </tr>
+          <tr>
+            <td data-i18n="trouble.3.msg">"No se pudo conectar al servicio" (timeout)</td>
+            <td data-i18n="trouble.3.fix">Región de AWS incorrecta, o problema de red temporal. Reintentá.</td>
+          </tr>
+          <tr>
+            <td data-i18n="trouble.4.msg">"La condición de la escritura no se cumplió"</td>
+            <td data-i18n="trouble.4.fix">Error interno poco común en este conector (no usa condiciones de escritura); reportalo si aparece.</td>
+          </tr>
+          <tr>
+            <td data-i18n="trouble.5.msg">El conector aparece "Sin configurar" tras guardar</td>
+            <td data-i18n="trouble.5.fix">Algún campo obligatorio quedó vacío. Completá Access Key ID, Secret Access Key, Región y Tabla.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 id="faq-seguridad" data-i18n="section.faq_seguridad">Preguntas frecuentes y notas de seguridad</h2>
+
+      <h3 data-i18n="faq.1.q">¿El agente puede modificar o borrar cualquier tabla de mi cuenta de AWS?</h3>
+      <div data-i18n="faq.1.a"><p>No. La policy IAM del usuario dedicado se limita a la tabla configurada — el agente no puede acceder a otras tablas de la cuenta.</p></div>
+
+      <h3 data-i18n="faq.2.q">¿Dónde queda guardado el Secret Access Key?</h3>
+      <div data-i18n="faq.2.a"><p>Como secreto en el almacén de credenciales de la plataforma. La interfaz nunca vuelve a mostrarlo; solo indica "definido". Para cambiarlo, escribí uno nuevo en el formulario.</p></div>
+
+      <h3 data-i18n="faq.3.q">Rotación de credenciales</h3>
+      <div data-i18n="faq.3.a"><p>Recomendado cada 90 días: generá un Access Key nuevo en IAM, actualizalo en el formulario del conector, y desactivá/eliminá el anterior una vez confirmado que el nuevo funciona.</p></div>
+
+      <h3 data-i18n="faq.4.q">¿Qué hago si las claves se comprometen?</h3>
+      <div data-i18n="faq.4.a"><ol><li>Desactivá el Access Key inmediatamente en IAM.</li><li>Revisá la actividad reciente en AWS CloudTrail.</li><li>Generá un Access Key nuevo y actualizalo en el formulario.</li></ol></div>
+
+      <div class="callout callout-warning">
+        <span class="callout-title" data-i18n="faq.warning_title">Buenas prácticas</span>
+        <span data-i18n="faq.warning_body">Usá siempre un usuario IAM dedicado y limitado a una sola tabla; nunca reutilices credenciales de administrador; y recordá que put_item/delete_item modifican datos reales de producción si apuntás el conector a una tabla productiva.</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const I18N = {
+      es: {
+        doc_title: "Conector AWS DynamoDB API — Ruvic",
+        toc_title: "Contenido",
+        "toc.que_es": "¿Qué es y para qué sirve?",
+        "toc.prerrequisitos": "Prerrequisitos",
+        "toc.configuracion_fabricante": "Configuración en el fabricante",
+        "toc.permisos": "Permisos requeridos",
+        "toc.configuracion_ruvic": "Configuración en Ruvic",
+        "toc.verificacion": "Verificación",
+        "toc.solucion_problemas": "Solución de problemas",
+        "toc.faq_seguridad": "Preguntas frecuentes y notas de seguridad",
+        guide_title: "Conector AWS DynamoDB API",
+        "section.que_es": "¿Qué es y para qué sirve?",
+        "section.que_es.body": "Este conector permite al agente de Ruvic operar directamente sobre una tabla de Amazon DynamoDB: escribir/reemplazar un ítem, obtenerlo por su clave, consultar por partition key, eliminarlo y describir la tabla.",
+        "section.que_es.write_title": "Este conector escribe y elimina datos",
+        "section.que_es.write_body": "A diferencia de los conectores de solo consulta del catálogo, este SÍ escribe (put_item) y elimina (delete_item) ítems reales en la tabla configurada.",
+        "table.operacion": "Operación",
+        "table.que_hace": "Qué hace",
+        "op.put_item": "Escribe o reemplaza por completo un ítem",
+        "op.get_item": "Obtiene un ítem por su clave primaria",
+        "op.query": "Consulta ítems que comparten una partition key",
+        "op.delete_item": "Elimina un ítem por su clave primaria",
+        "op.describe_table": "Metadatos de la tabla (estado, cantidad de ítems, tamaño)",
+        "section.prerrequisitos": "Prerrequisitos",
+        "prereq.1": "Una tabla de <strong>Amazon DynamoDB</strong> ya creada, con su clave primaria definida.",
+        "prereq.2": "Acceso a la <strong>consola de AWS IAM</strong> para crear un usuario dedicado.",
+        "prereq.3": "El nombre de la tabla y la región de AWS donde vive.",
+        "section.configuracion_fabricante": "Configuración en el fabricante",
+        "fabricante.intro": "Vas a crear un <strong>usuario IAM dedicado</strong> para Ruvic, con permisos limitados a una única tabla. No reutilices credenciales de administrador ni de tu aplicación.",
+        "step.1.label": "Crea un usuario IAM dedicado.",
+        "step.1.body": "En IAM → Usuarios → Crear usuario. No le des acceso a la consola, solo acceso programático.",
+        "step.2.label": "Crea una policy con el mínimo privilegio necesario.",
+        "step.2.body": "Adjuntá una policy en línea limitada a la tabla que va a usar el conector:",
+        "step.3.label": "Genera las claves de acceso.",
+        "step.3.body": "En la pestaña \"Credenciales de seguridad\" del usuario, creá un Access Key. Guardá el Access Key ID y el Secret Access Key — el secreto solo se muestra una vez.",
+        "section.permisos": "Permisos requeridos",
+        "table.permiso": "Permiso",
+        "table.para_que": "Para qué sirve",
+        "perm.put": "Escribir/reemplazar ítems (put_item)",
+        "perm.get": "Leer un ítem por clave (get_item)",
+        "perm.query": "Consultar por partition key (query)",
+        "perm.delete": "Eliminar un ítem (delete_item)",
+        "perm.describe": "Metadatos de la tabla (describe_table, test de conexión)",
+        "perm.note_title": "Nota",
+        "perm.note_body": "No se otorgan permisos de administración de tabla (dynamodb:CreateTable, dynamodb:DeleteTable, dynamodb:UpdateTable).",
+        "section.configuracion_ruvic": "Configuración en Ruvic",
+        "ruvic.intro": "Entrá a <strong>Settings → Conectores</strong>, buscá la tarjeta <strong>AWS DynamoDB API</strong> y pulsá <strong>Configurar</strong>.",
+        "table.campo": "Campo del formulario",
+        "table.valor": "Valor",
+        "field.access_key_id": "Access Key ID",
+        "field.access_key_id.value": "El Access Key ID generado en el paso anterior",
+        "field.secret_access_key": "Secret Access Key",
+        "field.secret_access_key.value": "El Secret Access Key generado (se guarda cifrado)",
+        "field.region": "Región de AWS",
+        "field.region.value": "La región donde está la tabla (ej. us-east-1)",
+        "field.table": "Tabla",
+        "field.table.value": "Nombre exacto de la tabla DynamoDB",
+        "ruvic.test_button": "Probar conexión",
+        "ruvic.test_note": " — la plataforma describirá la tabla configurada para confirmar credenciales y acceso.",
+        "section.verificacion": "Verificación",
+        "verif.1.label": "Test de conexión exitoso.",
+        "verif.1.body": "El botón \"Probar conexión\" debe responder con éxito describiendo la tabla configurada.",
+        "verif.2.label": "Prueba mínima con el agente.",
+        "verif.2.body": "Abrí una conversación nueva y pedile:",
+        "verif.2.quote": "\"Describime la tabla DynamoDB configurada.\"",
+        "verif.2.result": "El agente debe devolver el estado real y la cantidad de ítems de la tabla.",
+        "section.solucion_problemas": "Solución de problemas",
+        "table.mensaje": "Mensaje / síntoma",
+        "table.causa": "Causa probable y solución",
+        "trouble.1.msg": "\"Credenciales inválidas o sin permiso IAM suficiente\"",
+        "trouble.1.fix": "Access Key inválida/rotada, o la policy no incluye el permiso necesario para la operación. Revisá la policy adjunta al usuario IAM.",
+        "trouble.2.msg": "\"La tabla no existe o no es accesible\"",
+        "trouble.2.fix": "Nombre de tabla mal escrito, o la tabla está en otra región distinta a la configurada.",
+        "trouble.3.msg": "\"No se pudo conectar al servicio\" (timeout)",
+        "trouble.3.fix": "Región de AWS incorrecta, o problema de red temporal. Reintentá.",
+        "trouble.4.msg": "\"La condición de la escritura no se cumplió\"",
+        "trouble.4.fix": "Error interno poco común en este conector (no usa condiciones de escritura); reportalo si aparece.",
+        "trouble.5.msg": "El conector aparece \"Sin configurar\" tras guardar",
+        "trouble.5.fix": "Algún campo obligatorio quedó vacío. Completá Access Key ID, Secret Access Key, Región y Tabla.",
+        "section.faq_seguridad": "Preguntas frecuentes y notas de seguridad",
+        "faq.1.q": "¿El agente puede modificar o borrar cualquier tabla de mi cuenta de AWS?",
+        "faq.1.a": "No. La policy IAM del usuario dedicado se limita a la tabla configurada — el agente no puede acceder a otras tablas de la cuenta.",
+        "faq.2.q": "¿Dónde queda guardado el Secret Access Key?",
+        "faq.2.a": "Como secreto en el almacén de credenciales de la plataforma. La interfaz nunca vuelve a mostrarlo; solo indica \"definido\". Para cambiarlo, escribí uno nuevo en el formulario.",
+        "faq.3.q": "Rotación de credenciales",
+        "faq.3.a": "Recomendado cada 90 días: generá un Access Key nuevo en IAM, actualizalo en el formulario del conector, y desactivá/eliminá el anterior una vez confirmado que el nuevo funciona.",
+        "faq.4.q": "¿Qué hago si las claves se comprometen?",
+        "faq.4.a": "Desactivá el Access Key inmediatamente en IAM. Revisá la actividad reciente en AWS CloudTrail. Generá un Access Key nuevo y actualizalo en el formulario.",
+        "faq.warning_title": "Buenas prácticas",
+        "faq.warning_body": "Usá siempre un usuario IAM dedicado y limitado a una sola tabla; nunca reutilices credenciales de administrador; y recordá que put_item/delete_item modifican datos reales de producción si apuntás el conector a una tabla productiva.",
+      },
+      en: {
+        doc_title: "AWS DynamoDB API Connector — Ruvic",
+        toc_title: "Contents",
+        "toc.que_es": "What it is and what it's for",
+        "toc.prerrequisitos": "Prerequisites",
+        "toc.configuracion_fabricante": "Vendor-side setup",
+        "toc.permisos": "Required permissions",
+        "toc.configuracion_ruvic": "Setup in Ruvic",
+        "toc.verificacion": "Verification",
+        "toc.solucion_problemas": "Troubleshooting",
+        "toc.faq_seguridad": "FAQ and security notes",
+        guide_title: "AWS DynamoDB API Connector",
+        "section.que_es": "What it is and what it's for",
+        "section.que_es.body": "This connector lets the Ruvic agent operate directly on an Amazon DynamoDB table: put/replace an item, get it by key, query by partition key, delete it, and describe the table.",
+        "section.que_es.write_title": "This connector writes and deletes data",
+        "section.que_es.write_body": "Unlike the read-only connectors in the catalog, this one DOES write (put_item) and delete (delete_item) real items in the configured table.",
+        "table.operacion": "Operation",
+        "table.que_hace": "What it does",
+        "op.put_item": "Writes or fully replaces an item",
+        "op.get_item": "Gets an item by its primary key",
+        "op.query": "Queries items sharing a partition key",
+        "op.delete_item": "Deletes an item by its primary key",
+        "op.describe_table": "Table metadata (status, item count, size)",
+        "section.prerrequisitos": "Prerequisites",
+        "prereq.1": "An existing <strong>Amazon DynamoDB</strong> table with its primary key defined.",
+        "prereq.2": "Access to the <strong>AWS IAM console</strong> to create a dedicated user.",
+        "prereq.3": "The table name and the AWS region it lives in.",
+        "section.configuracion_fabricante": "Vendor-side setup",
+        "fabricante.intro": "You will create a <strong>dedicated IAM user</strong> for Ruvic, scoped to a single table. Do not reuse admin or application credentials.",
+        "step.1.label": "Create a dedicated IAM user.",
+        "step.1.body": "IAM → Users → Create user. No console access, programmatic access only.",
+        "step.2.label": "Create a least-privilege policy.",
+        "step.2.body": "Attach an inline policy scoped to the table the connector will use:",
+        "step.3.label": "Generate access keys.",
+        "step.3.body": "On the user's \"Security credentials\" tab, create an Access Key. Save the Access Key ID and Secret Access Key — the secret is shown only once.",
+        "section.permisos": "Required permissions",
+        "table.permiso": "Permission",
+        "table.para_que": "Why the connector needs it",
+        "perm.put": "Write/replace items (put_item)",
+        "perm.get": "Read an item by key (get_item)",
+        "perm.query": "Query by partition key (query)",
+        "perm.delete": "Delete an item (delete_item)",
+        "perm.describe": "Table metadata (describe_table, connection test)",
+        "perm.note_title": "Note",
+        "perm.note_body": "No table administration permissions are granted (dynamodb:CreateTable, dynamodb:DeleteTable, dynamodb:UpdateTable).",
+        "section.configuracion_ruvic": "Setup in Ruvic",
+        "ruvic.intro": "Go to <strong>Settings → Connectors</strong>, find the <strong>AWS DynamoDB API</strong> card and click <strong>Configure</strong>.",
+        "table.campo": "Form field",
+        "table.valor": "Value",
+        "field.access_key_id": "Access Key ID",
+        "field.access_key_id.value": "The Access Key ID generated in the previous step",
+        "field.secret_access_key": "Secret Access Key",
+        "field.secret_access_key.value": "The generated Secret Access Key (stored encrypted)",
+        "field.region": "AWS Region",
+        "field.region.value": "The region where the table lives (e.g. us-east-1)",
+        "field.table": "Table",
+        "field.table.value": "Exact name of the DynamoDB table",
+        "ruvic.test_button": "Test connection",
+        "ruvic.test_note": " — the platform will describe the configured table to confirm credentials and access.",
+        "section.verificacion": "Verification",
+        "verif.1.label": "Successful connection test.",
+        "verif.1.body": "The \"Test connection\" button should succeed by describing the configured table.",
+        "verif.2.label": "Minimal test with the agent.",
+        "verif.2.body": "Open a new conversation and ask:",
+        "verif.2.quote": "\"Describe the configured DynamoDB table.\"",
+        "verif.2.result": "The agent should return the table's real status and item count.",
+        "section.solucion_problemas": "Troubleshooting",
+        "table.mensaje": "Message / symptom",
+        "table.causa": "Likely cause and fix",
+        "trouble.1.msg": "\"Invalid credentials or insufficient IAM permission\"",
+        "trouble.1.fix": "Invalid/rotated Access Key, or the policy is missing the permission for that operation. Check the policy attached to the IAM user.",
+        "trouble.2.msg": "\"The table does not exist or is not accessible\"",
+        "trouble.2.fix": "Table name mistyped, or the table lives in a different region than configured.",
+        "trouble.3.msg": "\"Could not connect to the service\" (timeout)",
+        "trouble.3.fix": "Wrong AWS region, or a temporary network issue. Retry.",
+        "trouble.4.msg": "\"The write condition was not met\"",
+        "trouble.4.fix": "Uncommon internal error for this connector (it doesn't use write conditions); report it if it appears.",
+        "trouble.5.msg": "Connector shows \"Not configured\" after saving",
+        "trouble.5.fix": "A required field was left empty. Fill in Access Key ID, Secret Access Key, Region and Table.",
+        "section.faq_seguridad": "FAQ and security notes",
+        "faq.1.q": "Can the agent modify or delete any table in my AWS account?",
+        "faq.1.a": "No. The dedicated user's IAM policy is scoped to the configured table — the agent cannot access other tables in the account.",
+        "faq.2.q": "Where is the Secret Access Key stored?",
+        "faq.2.a": "As a secret in the platform's credential store. The UI never shows it again; it only shows \"set\". To change it, type a new one in the form.",
+        "faq.3.q": "Credential rotation",
+        "faq.3.a": "Recommended every 90 days: generate a new Access Key in IAM, update it in the connector form, and deactivate/delete the old one once the new one is confirmed working.",
+        "faq.4.q": "What if the keys are compromised?",
+        "faq.4.a": "Deactivate the Access Key immediately in IAM. Review recent activity in AWS CloudTrail. Generate a new Access Key and update it in the form.",
+        "faq.warning_title": "Best practices",
+        "faq.warning_body": "Always use a dedicated IAM user scoped to a single table; never reuse admin credentials; and remember that put_item/delete_item modify real production data if you point the connector at a production table.",
+      },
+    };
+    (function () {
+      function applyLang(lang) {
+        document.querySelectorAll("[data-i18n]").forEach(function (el) {
+          const key = el.getAttribute("data-i18n");
+          if (I18N[lang] && I18N[lang][key] !== undefined) {
+            el.innerHTML = I18N[lang][key];
+          }
+        });
+        document.querySelectorAll("[data-i18n-placeholder]").forEach(function (el) {
+          const key = el.getAttribute("data-i18n-placeholder");
+          if (I18N[lang] && I18N[lang][key] !== undefined) {
+            el.setAttribute("placeholder", I18N[lang][key]);
+          }
+        });
+        document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
+          const key = el.getAttribute("data-i18n-alt");
+          if (I18N[lang] && I18N[lang][key] !== undefined) {
+            el.setAttribute("alt", I18N[lang][key]);
+          }
+        });
+      }
+      let saved = "es";
+      try {
+        const stored = localStorage.getItem("ruvic-docs-lang");
+        if (stored === "en" || stored === "es") saved = stored;
+      } catch (e) {}
+      applyLang(saved);
+    })();
+  </script>
+</body>
+</html>
