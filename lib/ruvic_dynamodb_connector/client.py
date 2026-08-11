@@ -16,10 +16,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import boto3
-from boto3.dynamodb.conditions import Key
-from botocore.config import Config as BotoConfig
-from botocore.exceptions import BotoCoreError, ClientError, EndpointConnectionError
+import boto3  # type: ignore[import-untyped]
+from boto3.dynamodb.conditions import Key  # type: ignore[import-untyped]
+from botocore.config import Config as BotoConfig  # type: ignore[import-untyped]
+from botocore.exceptions import (  # type: ignore[import-untyped]
+    BotoCoreError,
+    ClientError,
+    EndpointConnectionError,
+)
 
 from .config import DynamodbConfig
 from .exceptions import (

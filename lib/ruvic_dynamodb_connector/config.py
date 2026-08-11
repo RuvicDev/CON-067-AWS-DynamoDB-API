@@ -24,7 +24,7 @@ class DynamodbConfig:
     connect_timeout: int = 10
 
     @classmethod
-    def from_env(cls) -> "DynamodbConfig":
+    def from_env(cls) -> DynamodbConfig:
         """Construye la configuración desde las variables RUVIC_DYNAMODB_*.
 
         Raises:
