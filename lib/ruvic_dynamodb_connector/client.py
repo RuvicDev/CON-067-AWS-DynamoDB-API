@@ -204,10 +204,17 @@ class DynamodbClient:
             >>> client.query("customer_id", "C-100")
             [{'customer_id': 'C-100', 'order_id': 'O-1', ...}, ...]
         """
+        if partition_key_name is not None and not isinstance(partition_key_name, str):
+            raise DynamodbDataError(
+                f"partition_key_name debe ser un string, no {type(partition_key_name).__name__}."
+            )
         partition_key_name = (partition_key_name or "").strip()
         if not partition_key_name:
             raise DynamodbDataError("partition_key_name no puede estar vacío.")
-        limit = max(1, min(int(limit), _MAX_QUERY_LIMIT))
+        try:
+            limit = max(1, min(int(limit), _MAX_QUERY_LIMIT))
+        except (TypeError, ValueError) as exc:
+            raise DynamodbDataError(f"limit inválido: {limit!r}. Debe ser un número entero.") from exc
         table = self._get_table()
         kwargs: dict[str, Any] = {
             "KeyConditionExpression": Key(partition_key_name).eq(partition_key_value),
